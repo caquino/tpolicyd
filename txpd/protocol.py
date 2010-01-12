@@ -11,7 +11,6 @@ class _O(dict):
     def __getattr__(self, k):
         return dict.get(self, k, None)
 
-
 class PDProtocol(basic.LineReceiver):
     delimiter = "\n\n"
 
@@ -26,21 +25,24 @@ class PDProtocol(basic.LineReceiver):
             else:
                 map[k] = v
 
-        d = self.factory.processor(map)
-        d.addCallbacks(self.sendResponse, self.processFailure)
+        d = self.factory.processor(map, self.factory.tools)
+        if isinstance(d, defer.Deferred):
+            d.addCallbacks(self.sendResponse, self.processFailure)
+        else:
+            self.sendResponse(d)
 
     def sendResponse(self, result):
         if isinstance(result, types.StringType):
             self.transport.write(result+"\n")
         else:
-            self.transport.write("OK\n")
+            self.transport.write("DUNNO\n")
 
     def processFailure(self, why):
         log.err(why)
         self.transport.loseConnection()
 
-
 class PDFactory(protocol.ServerFactory):
     protocol = PDProtocol
-    def __init__(self, processor):
+    def __init__(self, tools, processor):
+        self.tools = tools
         self.processor = processor
