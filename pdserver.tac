@@ -12,13 +12,13 @@ IPDB_PATH = "tools/ipdb.sqlite"
 
 import sys
 import os.path
-from txpd import helper
-from txpd import protocol
 from twisted.application import service, internet
 
 cwd = os.path.dirname(__file__)
 sys.path.append(cwd)
 import rules
+from txpd import helper
+from txpd import protocol
 
 tools = helper.Tools(os.path.join(cwd, IPDB_PATH))
 application = service.Application("TXPD")
