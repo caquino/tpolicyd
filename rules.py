@@ -44,7 +44,7 @@ def process(map, tools):
     * asn_lookup(_ip_address_): return a deferred wich will be fired
       when the ASN number for that _ip_address_ is available.
     """
-    response = "OK"
+    response = "DUNNO"
 
     # WHITELIST (VOU PUXAR DO LDAP OS IPS)
     if map.client_address == 'xx.xx.xx.xx':

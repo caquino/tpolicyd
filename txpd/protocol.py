@@ -33,9 +33,9 @@ class PDProtocol(basic.LineReceiver):
 
     def sendResponse(self, result):
         if isinstance(result, types.StringType):
-            self.transport.write(result+"\n")
+            self.sendLine("action=%s" % (result))
         else:
-            self.transport.write("DUNNO\n")
+            self.sendLine("action=DUNNO")
 
     def processFailure(self, why):
         log.err(why)
