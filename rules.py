@@ -1,6 +1,8 @@
 # coding: utf-8
 
 from twisted.internet import defer
+from twisted.internet.abstract import isIPAddress
+
 
 @defer.inlineCallbacks
 def process(map, tools):
@@ -46,23 +48,44 @@ def process(map, tools):
     """
     response = "DUNNO"
 
-    # WHITELIST (VOU PUXAR DO LDAP OS IPS)
-    if map.client_address == 'xx.xx.xx.xx':
-       defer.returnValue("DUNNO")
+    if map.request == 'smtpd_access_policy':
 
-    country = yield tools.geoip_lookup(map.client_address)
-    print "country is:", country
+        # WHITELIST (VOU PUXAR DO LDAP OS IPS)
+        if map.client_address == 'xx.xx.xx.xx':
+           defer.returnValue("OK")
 
-    # GREYLIST POR PAIS
-    if country == 'JP' or country == 'CH':
-       if map.os == 'Windows XP':
-            defer.returnValue("REJECT Rejeitado pelo sistema antispam")
-       else:
-            response = "GREYLIST Greylist indicada pelo antispam (CRT-01)"
-       
-    asn = yield tools.asn_lookup(map.client_address)
-    print "asn is:", asn
-    #if map.asnclient != map.asnmx:
-    #    action, reason = "GREYLIST", "Greylist indicada pelo antispam (ASN-01)"
+        # BLACKLIST (VOU PUXAR DO LDAP OS IPS)
+        if map.client_address == 'xx.xx.xx.xx':
+           defer.returnValue("REJECT Rejeitado pelo sistema antispam (BLK)")
 
+        # HELO CHECKS
+        if isIPAddress(map.helo_name):
+            if map.helo_name != map.client_address:
+                defer.returnValue("REJECT Rejeitado pelo sistema antispam (HLO-1)")
+            
+        if map.helo_name == map.recipient.split('@')[1]:
+            defer.returnValue("REJECT Rejeitado pelo sistema antispam (HLO-2)")
+
+        # PTR CHECK
+        if map.clien_name == 'unknown':
+            greylist = yield tools.greyling(map,"Greylist indicada pelo antispam (PTR-01)")
+            defer.returnValue(greylist)
+
+        country = yield tools.geoip_lookup(map.client_address)
+        print "country is:", country
+
+        # GREYLIST POR PAIS
+        if country == 'JP' or country == 'CH':
+           if map.os == 'Windows XP':
+                defer.returnValue("REJECT Rejeitado pelo sistema antispam")
+           else:
+                greylist = yield tools.greyling(map,"Greylist indicada pelo antispam (CRT-01)")
+                defer.returnValue(greylist)
+
+
+        asn = yield tools.asn_lookup(map.client_address)
+        print "asn is:", asn
+        #if map.asnclient != map.asnmx:
+        #    action, reason = "GREYLIST", "Greylist indicada pelo antispam (ASN-01)"
+    
     defer.returnValue(response)

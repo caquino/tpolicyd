@@ -33,6 +33,7 @@ class PDProtocol(basic.LineReceiver):
 
     def sendResponse(self, result):
         if isinstance(result, types.StringType):
+            print "action=", result
             self.sendLine("action=%s" % (result))
         else:
             self.sendLine("action=DUNNO")
