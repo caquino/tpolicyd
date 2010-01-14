@@ -41,15 +41,13 @@ class _API(object):
         return "<p0f: %d connection(s)>" % self._factory.size
 
 class _Protocol(protocol.Protocol):
-    def __init__(self):
-        self.queue = defer.DeferredQueue()
-
     def connectionMade(self):
-        self.factory.append(self)
+        self.sendRequest(*self.factory.request)
 
-    def connectionLost(self, why):
-        self.factory.remove(self)
-        protocol.Protocol.connectionLost(self, why)
+    def sendRequest(self, saddr, daddr, sport=0, dport=25):
+        query = struct.pack("IBI4s4sHH", 0x0defaced, 1, 0x12345678,
+            socket.inet_aton(saddr), socket.inet_aton(daddr), sport, dport)
+        self.transport.write(query)
 
     def dataReceived(self, data):
         result = []
@@ -58,63 +56,20 @@ class _Protocol(protocol.Protocol):
                 result.append(i[:i.find("\x00")])
             else:
                 result.append(i)
-        self.queue.put(result)
+        self.factory.deferred.callback(result)
+        self.transport.loseConnection()
 
-    def sendRequest(self, saddr, daddr, sport=0, dport=25):
-        query = struct.pack("IBI4s4sHH", 0x0defaced, 1, 0x12345678,
-            socket.inet_aton(saddr), socket.inet_aton(daddr), sport, dport)
-        self.transport.write(query)
-        return self.queue.get()
-
-class _Factory(protocol.ReconnectingClientFactory):
-    maxDelay = 10
+class _Factory(protocol.ClientFactory):
     protocol = _Protocol
 
-    def __init__(self, pool_size):
-        self.idx = 0
-        self.size = 0
-        self.pool = []
-        self.pool_size = pool_size
+    def __init__(self, *request):
+        self.request = request
         self.deferred = defer.Deferred()
-        self.API = _API(self)
 
-    def append(self, conn):
-        self.pool.append(conn)
-        self.size += 1
-        if self.deferred and self.size == self.pool_size:
-            self.deferred.callback(self.API)
-            self.deferred = None
+    def ready(self, conn):
+        conn.sendRequest(*self.request)
 
-    def remove(self, conn):
-        try:
-            self.pool.remove(conn)
-        except:
-            pass
-        self.size = len(self.pool)
-
-    @property
-    def connection(self):
-        assert self.size
-        conn = self.pool[self.idx % self.size]
-        self.idx += 1
-        return conn
-
-def _Connection(filename, reconnect, pool_size, lazy):
-    factory = _Factory(pool_size)
-    factory.continueTrying = reconnect
-    endpoint = filename or "/var/run/p0f.sock"
-    for x in xrange(pool_size):
-        reactor.connectUNIX(endpoint, factory)
-    return (lazy is True) and factory.API or factory.deferred
-
-def p0fConnection(filename=None, reconnect=True):
-    return _Connection(filename, reconnect, pool_size=1, lazy=False)
-
-def p0fConnectionPool(filename=None, reconnect=True, pool_size=10):
-    return _Connection(filename, reconnect, pool_size, lazy=False)
-
-def lazyp0fConnection(filename=None, reconnect=True):
-    return _Connection(filename, reconnect, pool_size=1, lazy=True)
-
-def lazyp0fConnectionPool(filename=None, reconnect=True, pool_size=10):
-    return _Connection(filename, reconnect, pool_size, lazy=True)
+def makeRequest(saddr, daddr, sport, dport, filename="/var/run/p0f.sock"):
+    factory = _Factory(saddr, daddr, sport, dport)
+    reactor.connectUNIX(filename, factory)
+    return factory.deferred
