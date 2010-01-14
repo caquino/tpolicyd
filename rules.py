@@ -75,9 +75,6 @@ def process(map, tools):
         country = yield tools.geoip_lookup(map.client_address)
         os = yield tools.os_lookup(map.client_address)
 
-        print country
-        print os
-
         # GREYLIST POR PAIS
         if (country == 'JP' or country == 'CH' or country == 'KR') and (os[3] == 'Windows' and os[4].find('XP')):
             defer.returnValue("REJECT Rejeitado pelo sistema antispam (PLC-GEOOS-01)")
