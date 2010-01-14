@@ -30,9 +30,6 @@ class _Factory(protocol.ClientFactory):
         self.request = request
         self.deferred = defer.Deferred()
 
-    def ready(self, conn):
-        conn.sendRequest(*self.request)
-
     def error(self, why):
         if self.deferred:
             self.deferred.errback(why)
