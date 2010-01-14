@@ -72,8 +72,15 @@ def process(map, tools):
             greylist = yield tools.greyling(map,"Greylist indicada pelo antispam (PLC-PTR-01)")
             defer.returnValue(greylist)
 
-        country = yield tools.geoip_lookup(map.client_address)
-        os = yield tools.os_lookup(map.client_address)
+        try:
+            country = yield tools.geoip_lookup(map.client_address)
+        except:
+            country = ""
+
+        try:
+            os = yield tools.os_lookup(map.client_address)
+        except:
+            os = ""
 
         # GREYLIST POR PAIS
         if (country == 'JP' or country == 'CH' or country == 'KR') and (os[3] == 'Windows' and os[4].find('XP')):
