@@ -1,0 +1,5 @@
+#!/bin/sh
+exec 2>&1
+rm /var/run/p0f.sock
+exec envuidgid nobody softlimit -o250 p0f -i eth0 -Q /var/run/p0f.sock -c 65535 -0 'dst port 25'
+
