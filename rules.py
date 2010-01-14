@@ -44,6 +44,8 @@ def process(map, tools):
       when the 2-letter country code for that _ip_address_ is available.
     * asn_lookup(_ip_address_): return a deferred wich will be fired
       when the ASN number for that _ip_address_ is available.
+    * os_lookup(_ip_address_): return a deferred which will be fired
+      then the source OS information for that _ip_address_ is available.
     """
     response = "DUNNO"
 
@@ -70,11 +72,18 @@ def process(map, tools):
             greylist = yield tools.greyling(map,"Greylist indicada pelo antispam (PLC-PTR-01)")
             defer.returnValue(greylist)
 
-#        country = yield tools.geoip_lookup(map.client_address)
-#        print "country is:", country
+        country = yield tools.geoip_lookup(map.client_address)
+        os = yield tools.os_lookup(map.client_address)
+
+        print country
+        print os
 
         # GREYLIST POR PAIS
-#        if country == 'JP' or country == 'CH':
+        if (country == 'JP' or country == 'CH' or country == 'KR') and (os[3] == 'Windows' and os[4].find('XP')):
+            defer.returnValue("REJECT Rejeitado pelo sistema antispam (PLC-GEOOS-01)")
+        elif country == 'RD' and os[3] == 'Linux':
+            defer.returnValue("REJECT Rejeitado pelo sistema antispam (PLC-GEOOS-02)")
+
 #           if map.os == 'Windows XP':
 #                defer.returnValue("REJECT Rejeitado pelo sistema antispam")
 #           else:

@@ -35,3 +35,33 @@ class Tools(object):
             ORDER BY ip_start DESC LIMIT 1""", (nbip, nbip,))
         d.addCallback(self.__wrap_rs)
         return d
+
+    def os_lookup(self, addr):
+        destination_address = '192.168.1.61'
+        response = ""
+        retry = 3
+        while retry > 0:
+            try:
+                p0f_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                p0f_socket.connect('/var/run/p0f.sock')
+                query = struct.pack("IBI4s4sHH", 0x0defaced, 1, 0x12345678, socket.inet_aton(addr), socket.inet_aton(destination_address), 0, 25)
+                p0f_socket.send(query)
+                response = p0f_socket.recv(1024)
+                break
+            except:
+                retry -= 1
+                pass
+
+        if response != "":
+            retEx = []
+            for i in struct.unpack("I I B 20s 40s b 30s 30s B B B h H i", response):
+                if type(i) == str and i.find('\x00') != -1:
+                    retEx.append(i[:i.find('\x00')])
+                else:
+                    retEx.append(i)
+
+        return retEx
+
+
+
+       
