@@ -1,1 +1,15 @@
 Twisted Postfix Delegation Policy Daemon
+
+
+tools/ipdb_generate.sh : Created the GeoIP/ASN database
+tools/p0f-scripts : daemontools scripts to run the p0f daemon
+
+Uses: 
+p0f > 2.0.8 - http://lcamtuf.coredump.cx/p0f.shtml
+twisted
+
+in Debian/Ubuntu:
+aptitude install python-twisted p0f daemontools daemontools-run
+
+Geoip database from http://freegeoip.net/
+free ASN database from http://maxmind.com/
