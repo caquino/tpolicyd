@@ -1,44 +1,7 @@
 # coding: utf-8
 
-import struct, socket
-from twisted.internet import task, defer, reactor, protocol
-
-class _API(object):
-    def __init__(self, factory):
-        self._factory = factory
-        self._connected = factory.deferred
-
-    def __disconnected(self, *args, **kwargs):
-        deferred = defer.Deferred()
-        deferred.errback(RuntimeWarning("not connected"))
-        return deferred
-
-    def __getattr__(self, method):
-        try:
-            return getattr(self._factory.connection, method)
-        except:
-            return self.__disconnected
-
-    def __connection_lost(self, deferred):
-        if self._factory.size == 0:
-            self.__task.stop()
-            deferred.callback(True)
-
-    def disconnect(self):
-        self._factory.continueTrying = 0
-        for conn in self._factory.pool:
-            try:
-                conn.transport.loseConnection()
-            except:
-                pass
-
-        d = defer.Deferred()
-        self.__task = task.LoopingCall(self.__connection_lost, d)
-        self.__task.start(1)
-        return d
-
-    def __repr__(self):
-        return "<p0f: %d connection(s)>" % self._factory.size
+import types, struct, socket
+from twisted.internet import defer, reactor, protocol
 
 class _Protocol(protocol.Protocol):
     def connectionMade(self):
@@ -57,6 +20,7 @@ class _Protocol(protocol.Protocol):
             else:
                 result.append(i)
         self.factory.deferred.callback(result)
+        self.factory.deferred = None
         self.transport.loseConnection()
 
 class _Factory(protocol.ClientFactory):
@@ -68,6 +32,19 @@ class _Factory(protocol.ClientFactory):
 
     def ready(self, conn):
         conn.sendRequest(*self.request)
+
+    def error(self, why):
+        if self.deferred:
+            self.deferred.errback(why)
+            self.deferred = None
+
+    def clientConnectionLost(self, conn, why):
+        self.error(why)
+        protocol.ClientFactory.clientConnectionLost(self, conn, why)
+
+    def clientConnectionFailed(self, conn, why):
+        self.error(why)
+        protocol.ClientFactory.clientConnectionFailed(self, conn, why)
 
 def makeRequest(saddr, daddr, sport, dport, filename="/var/run/p0f.sock"):
     factory = _Factory(saddr, daddr, sport, dport)
